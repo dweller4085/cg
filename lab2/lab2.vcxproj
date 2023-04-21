@@ -19,13 +19,12 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\..\lib\glad\src\glad.c" />
     <ClCompile Include="lab2.cc" />
     <ClCompile Include="math.cc" />
     <ClCompile Include="math.hh" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="shaders.hh" />
+    <ClInclude Include="common.hh" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

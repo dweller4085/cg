@@ -1,8 +1,6 @@
 #include "math.hh"
+#include "common.hh"
 #include <string.h>
-#include <malloc.h>
-#include <stdlib.h>
-#include <math.h>
 
 Transform::Transform() : mat {
     1.f, 0.f, 0.f, 0.f,
@@ -73,11 +71,99 @@ Transform& Transform::operator *= (Transform const & b) {
     return *this;
 }
 
-void Transform::apply (float * va, size_t n) {
-    for (size_t i = 0; i < n; i += 3) {
+void Transform::applyTo (float * va, size_t n) {
+    for (size_t i = 0; i < n * 3; i += 3) {
         Vec3 v {va[i], va[i + 1], va[i + 2]};
         va[i] = v.x * mat[0] + v.y * mat[4] + v.z * mat[8] + 1.f * mat[12];
         va[i+1] = v.x * mat[1] + v.y * mat[5] + v.z * mat[9] + 1.f * mat[13];
         va[i+2] = v.x * mat[2] + v.y * mat[6] + v.z * mat[10] + 1.f * mat[14];
+    }
+}
+
+void Transform::applyWith (float * to, float * with, size_t n) {
+    for (size_t i = 0; i < n * 3; i += 3) {
+        Vec3 v {with[i], with[i + 1], with[i + 2]};
+        to[i] = v.x * mat[0] + v.y * mat[4] + v.z * mat[8] + 1.f * mat[12];
+        to[i + 1] = v.x * mat[1] + v.y * mat[5] + v.z * mat[9] + 1.f * mat[13];
+        to[i + 2] = v.x * mat[2] + v.y * mat[6] + v.z * mat[10] + 1.f * mat[14];
+    }
+}
+
+Transform worldToView (Camera cam) {
+    float d;
+
+    /* 1..3 */
+    let viewTransform = Transform {}
+        .translate(-cam.pos)
+        .scale({-1.f, 1.f, 1.f})
+        .rotateX(.25f * TAU)
+    ;
+
+    /* 4 */
+    {
+        Transform R {};
+        d = hypotf(cam.pos.x, cam.pos.y);
+        float cosu;
+        float sinu;
+
+        if (d < EPSILON) {
+            cosu = 1.f;
+            sinu = 0.f;
+        }
+        else {
+            cosu = cam.pos.y / d;
+            sinu = cam.pos.x / d;
+        }
+
+        R.mat[0] = cosu;
+        R.mat[10] = cosu;
+        R.mat[2] = sinu;
+        R.mat[8] = -sinu;
+
+        viewTransform *= R;
+    }
+
+    /* 5 */
+    {
+        Transform R {};
+        float s = hypotf(d, cam.pos.z);
+        float cosw;
+        float sinw;
+
+        if (s < EPSILON) {
+            cosw = 1.f;
+            sinw = 0.f;
+        }
+        else {
+            cosw = d / s;
+            sinw = cam.pos.z / s;
+        }
+
+        R.mat[5] = cosw;
+        R.mat[10] = cosw;
+        R.mat[6] = -sinw;
+        R.mat[9] = sinw;
+
+        viewTransform *= R;
+    }
+
+    return viewTransform;
+}
+
+void perspectiveProj (float * pp, float * va, float s, size_t n) {
+    memset(pp, 0, n * 2 * sizeof(float));
+
+    for (size_t i = 0; i < n; i += 1) {
+        pp[2 * i + 0] = va[3 * i + 0] * (s / va[3 * i + 2]);
+        pp[2 * i + 1] = va[3 * i + 1] * (s / va[3 * i + 2]);
+    }
+}
+
+void parallelProj (float * pp, float * va, size_t n) {
+    memset(pp, 0, n * 2 * sizeof(float));
+    
+    for (size_t i = 0; i < n; i += 1) {
+        pp[2 * i + 0] = va[3 * i + 0];
+        pp[2 * i + 1] = va[3 * i + 1];
     }
 }
