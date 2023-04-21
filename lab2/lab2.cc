@@ -41,7 +41,7 @@ static struct Camera {
     Vec3 pos;
 } gCamera {{3, 4, 6}};
 
-Transform calcViewTransform (Camera cam) {
+Transform worldToView (Camera cam) {
     // 1..3
     auto viewTransform = Transform {}
         .translate(-cam.pos)
@@ -50,7 +50,8 @@ Transform calcViewTransform (Camera cam) {
     ;
 
     // 4
-    float d; {
+    float d;
+    {
         Transform R {};
         d = hypotf(cam.pos.x, cam.pos.y);
         float cosu;
@@ -60,10 +61,11 @@ Transform calcViewTransform (Camera cam) {
             cosu = 1.f;
             sinu = 0.f;
         }
+        else {
+            cosu = cam.pos.y / d;
+            sinu = cam.pos.x / d;
+        }
 
-        cosu = cam.pos.y / d;
-        sinu = cam.pos.x / d;
-        
         R.mat[0] = cosu;
         R.mat[10] = cosu;
         R.mat[2] = sinu;
@@ -83,9 +85,10 @@ Transform calcViewTransform (Camera cam) {
             cosw = 1.f;
             sinw = 0.f;
         }
-
-        cosw = d / s;
-        sinw = cam.pos.z / s;
+        else {
+            cosw = d / s;
+            sinw = cam.pos.z / s;
+        }
 
         R.mat[5] = cosw;
         R.mat[10] = cosw;
@@ -97,7 +100,6 @@ Transform calcViewTransform (Camera cam) {
 
     return viewTransform;
 }
-
 
 int main() {
     glfwInit();
@@ -124,7 +126,10 @@ int main() {
 
 
     /****************************************************************/
-    // and add the thingy to move camera on key press
+    /*
+        can probably do this with a vertex shader + uniform transform
+    */
+
 
     unsigned shaderProgram; {
         char const * vertexShaderSrc = gVertexShaderSrc;
@@ -181,8 +186,6 @@ int main() {
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0);
     }
-
-
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
