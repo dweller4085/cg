@@ -2,6 +2,8 @@
 #include "common.hh"
 #include <string.h>
 
+// any of the transform methods: 0.5
+
 Transform::Transform() : mat {
     1.f, 0.f, 0.f, 0.f,
     0.f, 1.f, 0.f, 0.f,
@@ -29,30 +31,30 @@ Transform& Transform::scale(Vec3 v) {
 
 Transform& Transform::rotateX(float a) {
     auto rotateX = Transform {};
-    rotateX.mat[5] = cos(a);
-    rotateX.mat[10] = cos(a);
-    rotateX.mat[6] = -sin(a);
-    rotateX.mat[9] = sin(a);
+    rotateX.mat[5] = cosf(a);
+    rotateX.mat[10] = cosf(a);
+    rotateX.mat[6] = -sinf(a);
+    rotateX.mat[9] = sinf(a);
 
     return (*this) *= rotateX;
 }
 
 Transform& Transform::rotateY(float a) {
     auto rotateX = Transform {};
-    rotateX.mat[0] = cos(a);
-    rotateX.mat[10] = cos(a);
-    rotateX.mat[8] = -sin(a);
-    rotateX.mat[2] = sin(a);
+    rotateX.mat[0] = cosf(a);
+    rotateX.mat[10] = cosf(a);
+    rotateX.mat[8] = -sinf(a);
+    rotateX.mat[2] = sinf(a);
 
     return (*this) *= rotateX;
 }
 
 Transform& Transform::rotateZ(float a) {
     auto rotateX = Transform {};
-    rotateX.mat[0] = cos(a);
-    rotateX.mat[5] = cos(a);
-    rotateX.mat[1] = -sin(a);
-    rotateX.mat[4] = sin(a);
+    rotateX.mat[0] = cosf(a);
+    rotateX.mat[5] = cosf(a);
+    rotateX.mat[1] = -sinf(a);
+    rotateX.mat[4] = sinf(a);
 
     return (*this) *= rotateX;
 }
@@ -80,7 +82,7 @@ void Transform::applyTo (float * va, size_t n) {
     }
 }
 
-void Transform::applyWith (float * to, float * with, size_t n) {
+void Transform::applyWith (float * __restrict to, float * __restrict with, size_t n) {
     for (size_t i = 0; i < n * 3; i += 3) {
         Vec3 v {with[i], with[i + 1], with[i + 2]};
         to[i] = v.x * mat[0] + v.y * mat[4] + v.z * mat[8] + 1.f * mat[12];
@@ -88,6 +90,7 @@ void Transform::applyWith (float * to, float * with, size_t n) {
         to[i + 2] = v.x * mat[2] + v.y * mat[6] + v.z * mat[10] + 1.f * mat[14];
     }
 }
+
 
 Transform worldToView (Camera cam) {
     float d;
@@ -150,20 +153,53 @@ Transform worldToView (Camera cam) {
     return viewTransform;
 }
 
-void perspectiveProj (float * pp, float * va, float s, size_t n) {
-    memset(pp, 0, n * 2 * sizeof(float));
 
+
+void perspectiveProj (float * __restrict pp, float * __restrict va, float s, size_t n) {
     for (size_t i = 0; i < n; i += 1) {
         pp[2 * i + 0] = va[3 * i + 0] * (s / va[3 * i + 2]);
         pp[2 * i + 1] = va[3 * i + 1] * (s / va[3 * i + 2]);
     }
 }
 
-void parallelProj (float * pp, float * va, size_t n) {
-    memset(pp, 0, n * 2 * sizeof(float));
-    
+
+
+void parallelProj (float * __restrict pp, float * __restrict va, size_t n) {
     for (size_t i = 0; i < n; i += 1) {
         pp[2 * i + 0] = va[3 * i + 0];
         pp[2 * i + 1] = va[3 * i + 1];
     }
+}
+
+// 0.3
+void pictureToScreen (float * __restrict screenSpace, float * __restrict picturePlane, size_t vertexCount, Screen screen) {
+    float k = 1.f;
+    for (size_t i = 0; i < vertexCount; i += 1) {
+        screenSpace[2 * i + 0] = picturePlane[2 * i + 0] * k + screen.width / 2.f;
+        screenSpace[2 * i + 1] = picturePlane[2 * i + 1] * k + screen.height / 2.f;
+    }
+}
+
+std::vector<sf::Vertex> flattenIVA (float * screenSpace, int * ia, size_t segmentCount) {
+    auto va = std::vector<sf::Vertex> {};
+    
+    for (size_t i = 0; i < segmentCount; i += 1) {
+        va.push_back(sf::Vertex {
+            sf::Vector2f {
+                screenSpace[ia[2 * i + 0] + 0],
+                screenSpace[ia[2 * i + 0] + 1]
+            },
+            sf::Color::White
+        });
+
+        va.push_back(sf::Vertex {
+            sf::Vector2f {
+                screenSpace[ia[2 * i + 1] + 0],
+                screenSpace[ia[2 * i + 1] + 1]
+            },
+            sf::Color::White
+        });
+    }
+
+    return va;
 }

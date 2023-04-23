@@ -1,5 +1,7 @@
 #pragma once
 #include <math.h>
+#include <vector>
+#include <SFML/Graphics.hpp>
 
 constexpr float TAU = 6.28318530718f;
 constexpr float EPSILON = 0.0000001f;
@@ -29,7 +31,7 @@ struct Transform {
     Transform& rotateZ (float);
     Transform& operator *= (Transform const &);
     void applyTo (float *, size_t);
-    void applyWith (float *, float *, size_t);
+    void applyWith (float * __restrict, float * __restrict, size_t);
 };
 
 struct Camera {
@@ -38,6 +40,22 @@ struct Camera {
     //Vec3 dir;
 };
 
+struct Screen {
+    unsigned width;
+    unsigned height;
+};
+
+// 0.3
 Transform worldToView (Camera);
-void perspectiveProj (float *, float *, float, size_t);
-void parallelProj (float *, float *, size_t);
+
+// 0.5
+void perspectiveProj (float * __restrict, float * __restrict, float, size_t);
+
+// 0.9
+void parallelProj (float * __restrict, float * __restrict, size_t);
+
+// 0.3
+void pictureToScreen (float * __restrict, float * __restrict, size_t, Screen);
+
+// 0.9
+std::vector<sf::Vertex> flattenIVA (float *, int *, size_t);
