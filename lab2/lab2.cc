@@ -7,17 +7,17 @@ static float testVA[] {
     4.f, 0.f, 0.f,
     0.f, 4.f, 0.f,
     0.f, 0.f, 4.f,
-    //2.f, 0.f, 1.f,
-    //-2.f, 0.f, 1.f,
-    //2.f, 1.f, 0.f,
-    //-2.f, 1.f, 0.f,
+    2.f, 0.f, 1.f,
+    -2.f, 0.f, 1.f,
+    2.f, 1.f, 0.f,
+    -2.f, 1.f, 0.f,
 };
 static int testIA[] {
     0, 1,
     0, 2,
     0, 3,
-    //4, 5,
-    //6, 7,
+    4, 5,
+    6, 7,
 };
 
 constexpr size_t vertexCount = sizeof(testVA) / (sizeof(float) * 3);
@@ -28,13 +28,13 @@ static float * screenSpace = (float *) malloc(vertexCount * 2 * sizeof(float));
 static float * viewSpace = (float *) malloc(sizeof(testVA));
 
 constexpr Screen screen {800, 600};
-static Camera camera {{6, 6, 6}};
+static Camera camera {{3, 4, 6}};
+
+namespace test {
+}
+
 
 int main() {
-    
-    
-    
-    /*
     let window = sf::RenderWindow {
         sf::VideoMode {screen.width, screen.height},
         "lab2",
@@ -54,7 +54,7 @@ int main() {
     enum class Projection : int {
         Perspective,
         Parallel,
-    } projection = Projection::Parallel;
+    } projection = Projection::Perspective;
 
 
     worldToView(camera).applyWith(viewSpace, testVA, vertexCount);
@@ -73,7 +73,6 @@ int main() {
     pictureToScreen(screenSpace, pictureSpace, vertexCount, screen);
     
     auto va = flattenIVA(screenSpace, testIA, segmentCount);
-
 
     window.clear();
     window.draw(va.data(), va.size(), sf::Lines);
@@ -97,13 +96,9 @@ int main() {
                         } break;
                     }
                 } break;
-
-                case sf::Event::MouseMoved: {
-                    //
-                } break;
             }
         }
     }
-    */
+    
     return 0;
 }

@@ -2,7 +2,7 @@
 #include "common.hh"
 #include <string.h>
 
-// any of the transform methods: 0.5
+// any of the transform methods: 0.7
 
 Transform::Transform() : mat {
     1.f, 0.f, 0.f, 0.f,
@@ -64,9 +64,10 @@ Transform& Transform::operator *= (Transform const & b) {
 
     for (int i = 0; i < 4; i += 1) {
         for (int j = 0; j < 4; j += 1) {
+            float s = 0.f;
             for (int k = 0; k < 4; k += 1) {
-                mat[4 * i + j] += a.mat[4 * i + k] * b.mat[4 * k + j];
-            }
+                s += a.mat[4 * i + k] * b.mat[4 * k + j];
+            } mat[4 * i + j] = s;
         }
     }
 
@@ -153,16 +154,12 @@ Transform worldToView (Camera cam) {
     return viewTransform;
 }
 
-
-
 void perspectiveProj (float * __restrict pp, float * __restrict va, float s, size_t n) {
     for (size_t i = 0; i < n; i += 1) {
         pp[2 * i + 0] = va[3 * i + 0] * (s / va[3 * i + 2]);
         pp[2 * i + 1] = va[3 * i + 1] * (s / va[3 * i + 2]);
     }
 }
-
-
 
 void parallelProj (float * __restrict pp, float * __restrict va, size_t n) {
     for (size_t i = 0; i < n; i += 1) {
@@ -171,12 +168,11 @@ void parallelProj (float * __restrict pp, float * __restrict va, size_t n) {
     }
 }
 
-// 0.3
-void pictureToScreen (float * __restrict screenSpace, float * __restrict picturePlane, size_t vertexCount, Screen screen) {
-    float k = 1.f;
+void pictureToScreen (float * __restrict screenSpace, float * __restrict pictureSpace, size_t vertexCount, Screen screen) {
+    float k = 25.f;
     for (size_t i = 0; i < vertexCount; i += 1) {
-        screenSpace[2 * i + 0] = picturePlane[2 * i + 0] * k + screen.width / 2.f;
-        screenSpace[2 * i + 1] = picturePlane[2 * i + 1] * k + screen.height / 2.f;
+        screenSpace[2 * i + 0] = pictureSpace[2 * i + 0] * k + screen.width / 2.f;
+        screenSpace[2 * i + 1] = -pictureSpace[2 * i + 1] * k + screen.height / 2.f;
     }
 }
 
@@ -186,16 +182,16 @@ std::vector<sf::Vertex> flattenIVA (float * screenSpace, int * ia, size_t segmen
     for (size_t i = 0; i < segmentCount; i += 1) {
         va.push_back(sf::Vertex {
             sf::Vector2f {
-                screenSpace[ia[2 * i + 0] + 0],
-                screenSpace[ia[2 * i + 0] + 1]
+                screenSpace[2 * ia[2 * i + 0] + 0],
+                screenSpace[2 * ia[2 * i + 0] + 1]
             },
             sf::Color::White
         });
 
         va.push_back(sf::Vertex {
             sf::Vector2f {
-                screenSpace[ia[2 * i + 1] + 0],
-                screenSpace[ia[2 * i + 1] + 1]
+                screenSpace[2 * ia[2 * i + 1] + 0],
+                screenSpace[2 * ia[2 * i + 1] + 1]
             },
             sf::Color::White
         });

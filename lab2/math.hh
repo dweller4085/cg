@@ -24,14 +24,14 @@ struct Transform {
     float mat [16];
     Transform();
     Transform (Transform const &) = default;
-    Transform& translate (Vec3);
-    Transform& scale (Vec3);
-    Transform& rotateX (float);
-    Transform& rotateY (float);
-    Transform& rotateZ (float);
-    Transform& operator *= (Transform const &);
-    void applyTo (float *, size_t);
-    void applyWith (float * __restrict, float * __restrict, size_t);
+    Transform& translate (Vec3); // .9
+    Transform& scale (Vec3); // .9
+    Transform& rotateX (float); // .9
+    Transform& rotateY (float); // .9
+    Transform& rotateZ (float); // .9
+    Transform& operator *= (Transform const &); // .9
+    void applyTo (float *, size_t); // .9
+    void applyWith (float * __restrict, float * __restrict, size_t); // .9
 };
 
 struct Camera {
@@ -45,7 +45,7 @@ struct Screen {
     unsigned height;
 };
 
-// 0.3
+// 0.8 seems to be correct [checks out with the booklet example]
 Transform worldToView (Camera);
 
 // 0.5
@@ -54,7 +54,7 @@ void perspectiveProj (float * __restrict, float * __restrict, float, size_t);
 // 0.9
 void parallelProj (float * __restrict, float * __restrict, size_t);
 
-// 0.3
+// 0.5
 void pictureToScreen (float * __restrict, float * __restrict, size_t, Screen);
 
 // 0.9
