@@ -2,40 +2,70 @@
 #include "math.hh"
 #include <SFML/Graphics.hpp>
 
-static float testVA[] {
+static float prismVA[] {
+    0.f, -2.f, -1.5f,
+    0.f, -2.f, 1.5f,
+    0.f, 2.f, 1.5f,
+    0.f, 2.f, -1.5f,
+    4.f, 0.f, 1.5f,
+    4.f, 0.f, -1.5f,
     0.f, 0.f, 0.f,
-    4.f, 0.f, 0.f,
-    0.f, 4.f, 0.f,
-    0.f, 0.f, 4.f,
-    10.f, 0.f, 1.f,
-    -10.f, 0.f, 1.f,
-    10.f, 1.f, 0.f,
-    -10.f, 1.f, 0.f,
+    1.f, 0.f, 0.f,
+    0.f, 1.f, 0.f,
+    0.f, 0.f, 1.f,
 };
-static int testIA[] {
-    0, 1,
-    0, 2,
-    0, 3,
-    4, 5,
+static int prismIA[] {
     6, 7,
+    6, 8,
+    6, 9,
+    4, 5,
+    0, 1,
+    1, 2,
+    2, 3,
+    3, 0,
+    1, 4,
+    2, 4,
+    0, 5,
+    3, 5,
 };
 
-constexpr size_t vertexCount = sizeof(testVA) / (sizeof(float) * 3);
-constexpr size_t segmentCount = sizeof(testIA) / (sizeof(float) * 2);
+constexpr size_t vertexCount = sizeof(prismVA) / (sizeof(float) * 3);
+constexpr size_t segmentCount = sizeof(prismIA) / (sizeof(float) * 2);
 
 static float * pictureSpace = (float *) malloc(vertexCount * 2 * sizeof(float));
 static float * screenSpace = (float *) malloc(vertexCount * 2 * sizeof(float));
-static float * viewSpace = (float *) malloc(sizeof(testVA));
-static float * finalVA = (float *) malloc(segmentCount * 2 * 3 * sizeof(float));
+static float * viewSpace = (float *) malloc(sizeof(prismVA));
+static sf::Vertex * finalVA = (sf::Vertex *) malloc((segmentCount * 2) * sizeof(sf::Vertex));
 
 constexpr Screen screen {800, 600};
-static Camera camera {{3, 4, 6}};
+static Camera camera {{6, 6, 6}};
 
 static struct CameraController {
     Camera & cam = ::camera;
     bool isDragging = false;
     float dragSpeed = 0.008f;
-    struct { int x, y; } prevCurPos;
+    float slideSpeed = 1.25f;
+    float zoomSpeed = 0.8f;
+    float pitchThreshold = 2.f;
+    struct { int x, y; } prevCurPos {0, 0};
+
+    void dragCamera(int dx, int dy) {
+        if (!isDragging) return;
+
+        Transform {}.rotateZ(dx * dragSpeed).applyTo(cam.pos.a, 1);
+        
+        float d = hypotf(cam.pos.x, cam.pos.y);
+
+        if ((d > pitchThreshold) || (cam.pos.z > 0 && dy < 0) || (cam.pos.z < 0 && dy > 0)) {
+            float cosu = cam.pos.y / d;
+            float sinu = cam.pos.x / d;
+            Transform {}
+            .rotateZ(cosu, -sinu)
+            .rotateX(-dy * dragSpeed)
+            .rotateZ(cosu, sinu)
+            .applyTo(cam.pos.a, 1);
+        }
+    }
 } camController;
 
 int main() {
@@ -76,6 +106,22 @@ int main() {
                         case sf::Keyboard::P: {
                             projection = Projection ((int) projection ^ 1);
                         } break;
+
+                        case sf::Keyboard::Q: {
+                            camController.cam.zoom -= camController.zoomSpeed;
+                        } break;
+
+                        case sf::Keyboard::E: {
+                            camController.cam.zoom += camController.zoomSpeed;
+                        } break;
+                        
+                        case sf::Keyboard::LShift: {
+                            camController.cam.pos += camController.slideSpeed * camController.cam.pos.normalized();
+                        } break;
+                        
+                        case sf::Keyboard::LControl: {
+                            camController.cam.pos += -camController.slideSpeed * camController.cam.pos.normalized();
+                        } break;
                     }
                 } break;
 
@@ -101,20 +147,16 @@ int main() {
                     int dy = event.mouseMove.y - camController.prevCurPos.y;
 
                     camController.prevCurPos = {event.mouseMove.x, event.mouseMove.y};
-
-                    if (camController.isDragging) {
-                        Transform {}.rotateZ(dx * camController.dragSpeed).applyTo(camController.cam.pos.a, 1);
-                    }
+                    camController.dragCamera(dx, dy);
                 } break;
             }
         }
 
-        worldToView(camera).applyWith(viewSpace, testVA, vertexCount);
+        worldToView(camera).applyWith(viewSpace, prismVA, vertexCount);
 
         switch (projection) {
             case Projection::Perspective: {
-                float s = Vec3::euclidianDistance(camera.pos, {0.f, 0.f, 0.f});
-                perspectiveProj(pictureSpace, viewSpace, s, vertexCount);
+                perspectiveProj(pictureSpace, viewSpace, camera, vertexCount);
             } break;
 
             case Projection::Parallel: {
@@ -122,12 +164,20 @@ int main() {
             } break;
         }
 
-        pictureToScreen(screenSpace, pictureSpace, vertexCount, screen);
+        pictureToScreen(screenSpace, pictureSpace, vertexCount, screen, camera.zoom);
+        flattenIVA(finalVA, screenSpace, prismIA, segmentCount);
 
-        auto va = flattenIVA(screenSpace, testIA, segmentCount);
+        {
+            for (int i = 0; i < 6; i += 1) {
+                finalVA[i].color = sf::Color {128, 128, 128};
+            }
+
+            finalVA[6].color = sf::Color::Red;
+            finalVA[7].color = sf::Color::Red;
+        }
 
         window.clear();
-        window.draw(va.data(), va.size(), sf::Lines);
+        window.draw(finalVA, segmentCount * 2, sf::Lines);
         window.display();
     }
     

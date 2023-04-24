@@ -29,32 +29,32 @@ Transform& Transform::scale(Vec3 v) {
     return (*this) *= scale;
 }
 
-Transform& Transform::rotateX(float a) {
+Transform& Transform::rotateX(float cosa, float sina) {
     auto rotateX = Transform {};
-    rotateX.mat[5] = cosf(a);
-    rotateX.mat[10] = cosf(a);
-    rotateX.mat[6] = -sinf(a);
-    rotateX.mat[9] = sinf(a);
+    rotateX.mat[5] = cosa;
+    rotateX.mat[10] = cosa;
+    rotateX.mat[6] = -sina;
+    rotateX.mat[9] = sina;
 
     return (*this) *= rotateX;
 }
 
-Transform& Transform::rotateY(float a) {
+Transform& Transform::rotateY(float cosa, float sina) {
     auto rotateX = Transform {};
-    rotateX.mat[0] = cosf(a);
-    rotateX.mat[10] = cosf(a);
-    rotateX.mat[8] = -sinf(a);
-    rotateX.mat[2] = sinf(a);
+    rotateX.mat[0] = cosa;
+    rotateX.mat[10] = cosa;
+    rotateX.mat[8] = -sina;
+    rotateX.mat[2] = sina;
 
     return (*this) *= rotateX;
 }
 
-Transform& Transform::rotateZ(float a) {
+Transform& Transform::rotateZ(float cosa, float sina) {
     auto rotateX = Transform {};
-    rotateX.mat[0] = cosf(a);
-    rotateX.mat[5] = cosf(a);
-    rotateX.mat[1] = -sinf(a);
-    rotateX.mat[4] = sinf(a);
+    rotateX.mat[0] = cosa;
+    rotateX.mat[5] = cosa;
+    rotateX.mat[1] = -sina;
+    rotateX.mat[4] = sina;
 
     return (*this) *= rotateX;
 }
@@ -105,7 +105,6 @@ Transform worldToView (Camera cam) {
 
     /* 4 */
     {
-        Transform R {};
         d = hypotf(cam.pos.x, cam.pos.y);
         float cosu;
         float sinu;
@@ -119,17 +118,11 @@ Transform worldToView (Camera cam) {
             sinu = cam.pos.x / d;
         }
 
-        R.mat[0] = cosu;
-        R.mat[10] = cosu;
-        R.mat[2] = sinu;
-        R.mat[8] = -sinu;
-
-        viewTransform *= R;
+        viewTransform *= Transform {}.rotateY(cosu, sinu);
     }
 
     /* 5 */
     {
-        Transform R {};
         float s = hypotf(d, cam.pos.z);
         float cosw;
         float sinw;
@@ -143,18 +136,14 @@ Transform worldToView (Camera cam) {
             sinw = cam.pos.z / s;
         }
 
-        R.mat[5] = cosw;
-        R.mat[10] = cosw;
-        R.mat[6] = -sinw;
-        R.mat[9] = sinw;
-
-        viewTransform *= R;
+        viewTransform *= Transform {}.rotateX(cosw, sinw);
     }
 
     return viewTransform;
 }
 
-void perspectiveProj (float * __restrict pp, float * __restrict va, float s, size_t n) {
+void perspectiveProj (float * __restrict pp, float * __restrict va, Camera camera, size_t n) {
+    float s = Vec3::euclidianDistance(camera.pos, {0.f, 0.f, 0.f});
     for (size_t i = 0; i < n; i += 1) {
         pp[2 * i + 0] = va[3 * i + 0] * (s / va[3 * i + 2]);
         pp[2 * i + 1] = va[3 * i + 1] * (s / va[3 * i + 2]);
@@ -168,34 +157,29 @@ void parallelProj (float * __restrict pp, float * __restrict va, size_t n) {
     }
 }
 
-void pictureToScreen (float * __restrict screenSpace, float * __restrict pictureSpace, size_t vertexCount, Screen screen) {
-    float k = 25.f;
+void pictureToScreen (float * __restrict screenSpace, float * __restrict pictureSpace, size_t vertexCount, Screen screen, float zoom) {
     for (size_t i = 0; i < vertexCount; i += 1) {
-        screenSpace[2 * i + 0] = pictureSpace[2 * i + 0] * k + screen.width / 2.f;
-        screenSpace[2 * i + 1] = -pictureSpace[2 * i + 1] * k + screen.height / 2.f;
+        screenSpace[2 * i + 0] = pictureSpace[2 * i + 0] * zoom + screen.width / 2.f;
+        screenSpace[2 * i + 1] = -pictureSpace[2 * i + 1] * zoom + screen.height / 2.f;
     }
 }
 
-std::vector<sf::Vertex> flattenIVA (float * screenSpace, int * ia, size_t segmentCount) {
-    auto va = std::vector<sf::Vertex> {};
-    
+void flattenIVA (sf::Vertex * __restrict finalVA, float * __restrict screenSpace, int * __restrict ia, size_t segmentCount) {
     for (size_t i = 0; i < segmentCount; i += 1) {
-        va.push_back(sf::Vertex {
+        finalVA[2 * i + 0] = sf::Vertex {
             sf::Vector2f {
                 screenSpace[2 * ia[2 * i + 0] + 0],
                 screenSpace[2 * ia[2 * i + 0] + 1]
             },
             sf::Color::White
-        });
+        };
 
-        va.push_back(sf::Vertex {
+        finalVA[2 * i + 1] = sf::Vertex {
             sf::Vector2f {
                 screenSpace[2 * ia[2 * i + 1] + 0],
                 screenSpace[2 * ia[2 * i + 1] + 1]
             },
             sf::Color::White
-        });
+        };
     }
-
-    return va;
 }
