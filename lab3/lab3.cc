@@ -14,9 +14,9 @@ int main() {
         }
     };
 
-    let event = sf::Event {};
-
     while (window.isOpen()) {
+        let static event = sf::Event {};
+
         while (window.pollEvent(event)) {
             switch (event.type) {
                 case sf::Event::Closed: {

@@ -7,8 +7,8 @@ static float prismVA[] {
     0.f, -2.f, 1.5f,
     0.f, 2.f, 1.5f,
     0.f, 2.f, -1.5f,
-    4.f, 0.f, 1.5f,
-    4.f, 0.f, -1.5f,
+    2.f, 0.f, 1.5f,
+    2.f, 0.f, -1.5f,
     0.f, 0.f, 0.f,
     1.f, 0.f, 0.f,
     0.f, 1.f, 0.f,
@@ -41,7 +41,7 @@ constexpr Screen screen {800, 600};
 static Camera camera {{6, 6, 6}};
 
 static struct CameraController {
-    Camera & cam = ::camera;
+    Camera& cam = ::camera;
     bool isDragging = false;
     float dragSpeed = 0.008f;
     float slideSpeed = 1.25f;
@@ -74,11 +74,7 @@ int main() {
         "lab2",
         sf::Style::Default,
         sf::ContextSettings {
-            0,
-            0,
-            0,
-            1,
-            1,
+            0, 0, 0, 1, 1,
             sf::ContextSettings::Default,
             false
         }

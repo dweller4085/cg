@@ -60,10 +60,10 @@ struct Transform {
     Transform (Transform const &) = default;
     Transform& translate (Vec3);
     Transform& scale (Vec3);
-    Transform & rotateX (float, float);
-    Transform & rotateY (float, float);
-    Transform & rotateZ (float, float);
-    Transform & rotateX (float a) { return self.rotateX(cosf(a), sinf(a)); };
+    Transform& rotateX (float, float);
+    Transform& rotateY (float, float);
+    Transform& rotateZ (float, float);
+    Transform& rotateX (float a) { return self.rotateX(cosf(a), sinf(a)); };
     Transform& rotateY (float a) { return self.rotateY(cosf(a), sinf(a)); };
     Transform& rotateZ (float a) { return self.rotateZ(cosf(a), sinf(a)); };
     Transform& operator *= (Transform const &);
@@ -84,7 +84,7 @@ struct Screen {
 };
 
 Transform worldToView (Camera);
-void perspectiveProj (float * __restrict, float * __restrict, Camera, size_t); // .5 bugs out with some cam perspectives. sfml shit?
+void perspectiveProj (float * __restrict, float * __restrict, Camera, size_t);
 void parallelProj (float * __restrict, float * __restrict, size_t);
 void pictureToScreen (float * __restrict, float * __restrict, size_t, Screen, float);
 void flattenIVA (sf::Vertex * __restrict, float * __restrict, int * __restrict, size_t);
