@@ -18,12 +18,18 @@
     <ClCompile Include="lab3.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="math.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="lab3.hh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="math.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
