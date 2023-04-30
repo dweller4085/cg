@@ -3,7 +3,7 @@
 #include "math.hh"
 
 namespace {
-    struct {
+    struct Prism {
         static constexpr int vertexCount = 6;
         static constexpr int triCount = 8;
         
@@ -38,7 +38,63 @@ namespace {
             {255, 255, 255},
         };
 
-    } const prism;
+        float centerPoint[3] {};
+        float * W = (float *) malloc (triCount * 4 * sizeof(float));
+        
+        Prism() {
+            enum Var : int { x, y, z };
+            
+            for (int i = 0; i < vertexCount; i += 1) {
+                centerPoint[x] += va[3 * i + x] * (1.f / vertexCount);
+                centerPoint[y] += va[3 * i + y] * (1.f / vertexCount);
+                centerPoint[z] += va[3 * i + z] * (1.f / vertexCount);
+            }
+
+            for (int i = 0; i < triCount; i += 1) {
+                auto const static p = [this, &i](Var v, int j) -> float {
+                    return va[3 * tri[3 * i + (j - 1)] + v];
+                };
+
+                float a {
+                    (p(y, 3) - p(y, 1)) * (p(z, 2) - p(z, 1)) -
+                    (p(y, 2) - p(y, 1)) * (p(z, 3) - p(z, 1))
+                };
+
+                float b {
+                    (p(x, 2) - p(x, 1)) * (p(z, 3) - p(z, 1)) -
+                    (p(x, 3) - p(x, 1)) * (p(z, 2) - p(z, 1))
+                };
+
+                float c {
+                    (p(x, 3) - p(x, 1)) * (p(y, 2) - p(y, 1)) -
+                    (p(x, 2) - p(x, 1)) * (p(y, 3) - p(y, 1))
+                };
+
+                float d {
+                    - a * p(x, 1)
+                    - b * p(y, 1)
+                    - c * p(z, 1)
+                };
+
+                if (a * centerPoint[x] + b * centerPoint[y] + c * centerPoint[z] + d < 0.f) {
+                    a *= -1.f;
+                    b *= -1.f;
+                    c *= -1.f;
+                    d *= -1.f;
+                }
+
+                W[4 * i + 0] = a;
+                W[4 * i + 1] = b;
+                W[4 * i + 2] = c;
+                W[4 * i + 3] = d;
+            }
+        }
+
+        ~Prism() {
+            free(W);
+        }
+
+    } prism {};
 
     float * pictureSpace = (float *) malloc(prism.vertexCount * 2 * sizeof(float));
     float * screenSpace = (float *) malloc(prism.vertexCount * 2 * sizeof(float));
@@ -46,9 +102,9 @@ namespace {
     sf::Vertex * finalVA = (sf::Vertex *) malloc(prism.triCount * 3 * sizeof(sf::Vertex));
 
     Screen screen {800, 600};
-    Camera camera {{6, 6, 6}};
+    Camera camera {{6, 6, 6}}, visCamera {{6, 6, 6}};
     struct CameraController {
-        Camera& cam = ::camera;
+        Camera * cam = &::camera;
         bool isDragging = false;
         float dragSpeed = 0.008f;
         float slideSpeed = 1.25f;
@@ -59,18 +115,18 @@ namespace {
         void dragCamera(int dx, int dy) {
             if (!isDragging) return;
 
-            Transform {}.rotateZ(dx * dragSpeed).applyTo(cam.pos.a, 1);
+            Transform {}.rotateZ(dx * dragSpeed).applyTo(cam->pos.a, 1);
 
-            float d = hypotf(cam.pos.x, cam.pos.y);
+            float d = hypotf(cam->pos.x, cam->pos.y);
 
-            if ((d > pitchThreshold) || (cam.pos.z > 0 && dy < 0) || (cam.pos.z < 0 && dy > 0)) {
-                float cosu = cam.pos.y / d;
-                float sinu = cam.pos.x / d;
+            if ((d > pitchThreshold) || (cam->pos.z > 0 && dy < 0) || (cam->pos.z < 0 && dy > 0)) {
+                float cosu = cam->pos.y / d;
+                float sinu = cam->pos.x / d;
                 Transform {}
                 .rotateZ(cosu, -sinu)
                 .rotateX(-dy * dragSpeed)
                 .rotateZ(cosu, sinu)
-                .applyTo(cam.pos.a, 1);
+                .applyTo(cam->pos.a, 1);
             }
         }
     } camController;
@@ -96,7 +152,6 @@ void flattenIVA (sf::Vertex * finalVA, float const * screenSpace, int const * tr
         };
 
         // some fucking determinant magic shit
-
         return x[0]*y[1] + x[1]*y[2] + x[2]*y[0] < y[0]*x[1] + y[1]*x[2] + y[2]*x[0];
     }};
 
@@ -121,6 +176,40 @@ void flattenIVA (sf::Vertex * finalVA, float const * screenSpace, int const * tr
                 },
                 prism.triColors[orderedTri[i]]
             };
+        }
+    }
+}
+
+void markVisibleTris (Projection projection, Prism& prism, Camera& cam) {
+    auto static const isVisible = [&](int i) -> bool {
+        bool r = false;
+        switch (projection) {
+            case Projection::Perspective: {
+                r = (
+                    prism.W[4 * i + 0] * cam.pos.x +
+                    prism.W[4 * i + 1] * cam.pos.y +
+                    prism.W[4 * i + 2] * cam.pos.z +
+                    prism.W[4 * i + 3]
+                ) < 0.f;
+            } break;
+
+            case Projection::Parallel: {
+                r = (
+                    prism.W[4 * i + 0] * cam.pos.x +
+                    prism.W[4 * i + 1] * cam.pos.y +
+                    prism.W[4 * i + 2] * cam.pos.z
+                ) < 0.f;
+            } break;
+        }
+
+        return r;
+    };
+    
+    for (int i = 0; i < prism.triCount; i += 1) {
+        if (isVisible(i)) {
+            prism.triColors[i] = sf::Color::White;
+        } else {
+            prism.triColors[i] = sf::Color::Red;
         }
     }
 }
@@ -160,19 +249,27 @@ int main() {
                         } break;
 
                         case sf::Keyboard::Q: {
-                            camController.cam.zoom -= camController.zoomSpeed;
+                            camController.cam->zoom -= camController.zoomSpeed;
                         } break;
 
                         case sf::Keyboard::E: {
-                            camController.cam.zoom += camController.zoomSpeed;
+                            camController.cam->zoom += camController.zoomSpeed;
                         } break;
 
                         case sf::Keyboard::LShift: {
-                            camController.cam.pos += camController.slideSpeed * camController.cam.pos.normalized();
+                            camController.cam->pos += camController.slideSpeed * camController.cam->pos.normalized();
                         } break;
 
                         case sf::Keyboard::LControl: {
-                            camController.cam.pos += -camController.slideSpeed * camController.cam.pos.normalized();
+                            camController.cam->pos += -camController.slideSpeed * camController.cam->pos.normalized();
+                        } break;
+
+                        case sf::Keyboard::Num1: {
+                            camController.cam = &camera;
+                        } break;
+
+                        case sf::Keyboard::Num2: {
+                            camController.cam = &visCamera;
                         } break;
                     }
                 } break;
@@ -204,7 +301,8 @@ int main() {
             }
         }
 
-        worldToView(camera).applyWith(viewSpace, prism.va, prism.vertexCount);
+        markVisibleTris(projection, prism, visCamera);
+        worldToView(*camController.cam).applyWith(viewSpace, prism.va, prism.vertexCount);
         switch (projection) {
             case Projection::Perspective: {
                 perspectiveProj(pictureSpace, viewSpace, camera, prism.vertexCount);
@@ -214,7 +312,7 @@ int main() {
                 parallelProj(pictureSpace, viewSpace, prism.vertexCount);
             } break;
         }
-        pictureToScreen(screenSpace, pictureSpace, prism.vertexCount, screen, camera.zoom);
+        pictureToScreen(screenSpace, pictureSpace, prism.vertexCount, screen, camController.cam->zoom);
         flattenIVA(finalVA, screenSpace, prism.tri, prism.triCount);
 
         window.clear();
