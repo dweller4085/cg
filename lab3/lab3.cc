@@ -18,13 +18,13 @@ namespace {
 
         int tri [triCount * 3] {
             0, 1, 2,
-            3, 4, 5,
-            0, 3, 4,
-            4, 1, 0,
+            3, 5, 4,
             0, 2, 3,
-            3, 5, 2,
-            2, 1, 4,
-            4, 5, 2,
+            2, 5, 3,
+            1, 0, 4,
+            0, 3, 4,
+            1, 5, 2,
+            1, 4, 5,
         };
 
         sf::Color triColors[triCount] {
@@ -42,9 +42,8 @@ namespace {
 
     float * pictureSpace = (float *) malloc(prism.vertexCount * 2 * sizeof(float));
     float * screenSpace = (float *) malloc(prism.vertexCount * 2 * sizeof(float));
-    float * viewSpace = (float *) malloc(sizeof(prism.vertexCount));
-    float * zBuffer = (float *) malloc(prism.vertexCount * sizeof(float));
-    sf::Vertex * finalVA = (sf::Vertex *) malloc((prism.triCount * 3) * sizeof(sf::Vertex));
+    float * viewSpace = (float *) malloc(prism.vertexCount * 3 * sizeof(float));
+    sf::Vertex * finalVA = (sf::Vertex *) malloc(prism.triCount * 3 * sizeof(sf::Vertex));
 
     Screen screen {800, 600};
     Camera camera {{6, 6, 6}};
@@ -81,20 +80,34 @@ namespace {
     } projection;
 }
 
-void flattenIVA (sf::Vertex * finalVA, float * screenSpace, float * zBuffer, int const * tri, int triCount) {
+void flattenIVA (sf::Vertex * finalVA, float const * screenSpace, int const * tri, int triCount) {
+    static int * orderedTri = (int *) malloc (sizeof(int) * triCount);
+    auto static const isCCW { [=] (int i) -> bool {
+        float x [3] {
+            screenSpace[2 * tri[3 * i + 0] + 0],
+            screenSpace[2 * tri[3 * i + 1] + 0],
+            screenSpace[2 * tri[3 * i + 2] + 0],
+        };
 
-    static struct OrderedTri { int i; float z; } *orderedTri = (OrderedTri *) malloc (sizeof(OrderedTri) * triCount);
+        float y [3] {
+            screenSpace[2 * tri[3 * i + 0] + 1],
+            screenSpace[2 * tri[3 * i + 1] + 1],
+            screenSpace[2 * tri[3 * i + 2] + 1],
+        };
+
+        // some fucking determinant magic shit
+
+        return x[0]*y[1] + x[1]*y[2] + x[2]*y[0] < y[0]*x[1] + y[1]*x[2] + y[2]*x[0];
+    }};
+
     {
-        for (int i = 0; i < triCount; i += 1) {
-            float meanZ = (zBuffer[tri[3 * i + 0]] + zBuffer[tri[3 * i + 1]] + zBuffer[tri[3 * i + 2]]) / 3.f;
-
-            orderedTri[i] = {i, meanZ};
-            for (int j = 0; j < i; j += 1) {
-                if (meanZ > orderedTri[j].z) {
-                    memmove(&orderedTri[j + 1], &orderedTri[j], (i - j) * sizeof(OrderedTri));
-                    orderedTri[j] = {i, meanZ};
-                    break;
-                }
+        int i = 0;
+        int j = triCount - 1;
+        for (int k = 0; k < triCount; k += 1) {
+            if (isCCW(k)) {
+                orderedTri[j--] = k;
+            } else {
+                orderedTri[i++] = k;
             }
         }
     }
@@ -103,23 +116,17 @@ void flattenIVA (sf::Vertex * finalVA, float * screenSpace, float * zBuffer, int
         for (int j = 0; j < 3; j += 1) {
             finalVA[3 * i + j] = sf::Vertex {
                 sf::Vector2f {
-                    screenSpace[2 * tri[3 * orderedTri[i].i + j] + 0],
-                    screenSpace[2 * tri[3 * orderedTri[i].i + j] + 1]
+                    screenSpace[2 * tri[3 * orderedTri[i] + j] + 0],
+                    screenSpace[2 * tri[3 * orderedTri[i] + j] + 1]
                 },
-                prism.triColors[orderedTri[i].i]
+                prism.triColors[orderedTri[i]]
             };
         }
     }
 }
 
-void extractZ (float * __restrict zBuffer, float * __restrict viewSpace, int vertexCount) {
-    for (int i = 0; i < vertexCount; i += 1) {
-        zBuffer[i] = viewSpace[3 * i + 2];
-    }
-}
-
 int main() {
-    if (!(pictureSpace && viewSpace && screenSpace && zBuffer && finalVA)) {
+    if (!(pictureSpace && viewSpace && screenSpace && finalVA)) {
         exit(-1);
     }
 
@@ -134,8 +141,8 @@ int main() {
         }
     };
 
-    sf::Event event;
     while (window.isOpen()) {
+        sf::Event static event;
         while (window.pollEvent(event)) {
             switch (event.type) {
                 case sf::Event::Closed: {
@@ -198,7 +205,6 @@ int main() {
         }
 
         worldToView(camera).applyWith(viewSpace, prism.va, prism.vertexCount);
-        ::extractZ(zBuffer, viewSpace, prism.vertexCount);
         switch (projection) {
             case Projection::Perspective: {
                 perspectiveProj(pictureSpace, viewSpace, camera, prism.vertexCount);
@@ -209,7 +215,7 @@ int main() {
             } break;
         }
         pictureToScreen(screenSpace, pictureSpace, prism.vertexCount, screen, camera.zoom);
-        ::flattenIVA(finalVA, screenSpace, zBuffer, prism.tri, prism.triCount);
+        flattenIVA(finalVA, screenSpace, prism.tri, prism.triCount);
 
         window.clear();
         window.draw(finalVA, prism.triCount * 3, sf::Triangles);
