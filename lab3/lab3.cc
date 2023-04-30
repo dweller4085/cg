@@ -230,6 +230,10 @@ int main() {
         }
     };
 
+    auto r1 = sf::RectangleShape {{20, 20}};
+    r1.setPosition({750, 30});
+    r1.setFillColor(sf::Color::White);
+
     while (window.isOpen()) {
         sf::Event static event;
         while (window.pollEvent(event)) {
@@ -323,6 +327,9 @@ int main() {
 
         window.clear();
         window.draw(finalVA, prism.triCount * 3, sf::Triangles);
+        if (camController.cam != &visCamera) {
+            window.draw(r1);
+        }
         window.display();
     }
     
