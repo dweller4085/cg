@@ -73,7 +73,7 @@ struct Transform {
 
 struct Camera {
     Vec3 pos;
-    float zoom = 25.f;
+    float zoom = 50.f;
     //cam always points to world origin
     //Vec3 dir;
 };

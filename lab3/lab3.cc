@@ -265,11 +265,17 @@ int main() {
                         } break;
 
                         case sf::Keyboard::Num1: {
-                            camController.cam = &camera;
+                            if (camController.cam != &camera) {
+                                camera = visCamera;
+                                camController.cam = &camera;
+                            }
                         } break;
 
                         case sf::Keyboard::Num2: {
-                            camController.cam = &visCamera;
+                            if (camController.cam != &visCamera) {
+                                visCamera = camera;
+                                camController.cam = &visCamera;
+                            }
                         } break;
                     }
                 } break;
@@ -305,7 +311,7 @@ int main() {
         worldToView(*camController.cam).applyWith(viewSpace, prism.va, prism.vertexCount);
         switch (projection) {
             case Projection::Perspective: {
-                perspectiveProj(pictureSpace, viewSpace, camera, prism.vertexCount);
+                perspectiveProj(pictureSpace, viewSpace, *camController.cam, prism.vertexCount);
             } break;
 
             case Projection::Parallel: {
