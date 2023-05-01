@@ -8,7 +8,7 @@ Camera camera {{0.f, 0.f, -100.f}};
 
 struct alignas(4) Pixel {
     u8 r, g, b, a;
-} *pixelArray = (Pixel *) calloc(screen.width * screen.height,  sizeof(Pixel));
+} *pixelArray = (Pixel *) calloc(screen.width * screen.height, sizeof(Pixel));
 
 constexpr auto wave = [](float x, float z) -> float {
     return std::cosf(std::sqrtf(x * x + z * z));
@@ -21,6 +21,8 @@ struct Surface {
     vec3 * dva;
     vec2 * pva;
     vec2 * tva;
+
+    int cornerIdx[4] {};
 
     Surface(std::function<float(float, float)> f, float minX, float minZ, float maxX, float maxZ) {
         dva = (vec3 *) malloc(vertexCount * sizeof(vec3));
@@ -53,6 +55,40 @@ struct Surface {
     }
 
 } surface {wave, -PI, -PI, PI, PI};
+
+Transform scaleToFit (Screen screen, Surface& surface) {
+    constexpr auto maxCornerX = [](vec2 * tva, int cornerIdx[4]) -> float {
+        float max = 1.f / EPSILON;
+        for (int i = 0; i < 4; i += 1) {
+            if (tva[cornerIdx[i]].x > max) {
+                max = tva[cornerIdx[i]].x;
+            }
+        } return max;
+    };
+
+    constexpr auto maxY = [](Surface& surface) -> float {
+        float max = 1.f / EPSILON;
+        for (int i = 0; i < Surface::vertexCount; i += 1) {
+            if (surface.tva[i].y > max) {
+                max = surface.tva[i].y;
+            }
+        } return max;
+    };
+    
+    
+    float scaleX = maxCornerX(surface.tva, surface.cornerIdx);
+    float scaleY = maxY(surface);
+
+    float k;
+
+    if (screen.width * 0.5f / scaleX > screen.height * 0.5f / scaleY) {
+        k = screen.height * 0.5f / scaleY;
+    }
+    else {
+        k = screen.width * 0.5f / scaleX;
+    } k = 1.f;
+    return Transform {}.scale({k, k, 1.f});
+}
 
 void floatingHorizon (Pixel * pixelArray, Screen screen, Surface& surface) {
     static int * upperHorizon = (int *) malloc(screen.width * sizeof(int));
@@ -195,21 +231,9 @@ int main() {
         .applyWith((float *) surface.dva, (float const *) surface.sva, Surface::vertexCount);
         parallelProj((float *) surface.pva, (float *) surface.dva, Surface::vertexCount);
         pictureToScreen((float *) surface.tva, (float *) surface.pva, Surface::vertexCount, screen, camera.zoom);
-
-        //static sf::Vertex * fva = (sf::Vertex *) malloc(Surface::vertexCount * sizeof(sf::Vertex));
-        //for (int i = 0; i < Surface::vertexCount; i += 1) {
-        //    fva[i] = sf::Vertex {{tva[i].x, tva[i].y}, sf::Color::White};
-        //}
-
-        //for (u32 i = 0; i < screen.width; i += 1) {
-        //    for (u32 j = 0; j < screen.height; j += 1) {
-        //        float a = 255.f * i / (float) screen.width;
-        //        pixelArray[screen.width * j + i] = {u8 (a), u8 (a), u8 (a), 255};
-        //    }
-        //}
+        scaleToFit(screen, surface).applyTo((float *) surface.tva, Surface::vertexCount);
 
         window.clear();
-        //window.draw(fva, Surface::vertexCount, sf::Points);
         floatingHorizon(pixelArray, screen, surface);
         texture.update((u8 *) pixelArray);
         window.draw(canvas);
