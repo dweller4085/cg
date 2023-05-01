@@ -6,6 +6,10 @@
 Screen screen {800, 600};
 Camera camera {{0.f, 0.f, -100.f}};
 
+struct alignas(4) Pixel {
+    u8 r, g, b, a;
+} *pixelArray = (Pixel *) calloc(screen.width * screen.height,  sizeof(Pixel));
+
 constexpr auto wave = [](float x, float z) -> float {
     return std::cosf(std::sqrtf(x * x + z * z));
 };
@@ -15,14 +19,16 @@ struct Surface {
     static constexpr u32 vertexCount = n * n;
     vec3 * sva;
     vec3 * dva;
-    vec2 * pva;;
+    vec2 * pva;
+    vec2 * tva;
 
     Surface(std::function<float(float, float)> f, float minX, float minZ, float maxX, float maxZ) {
         dva = (vec3 *) malloc(vertexCount * sizeof(vec3));
         sva = (vec3 *) malloc(vertexCount * sizeof(vec3));
         pva = (vec2 *) malloc(vertexCount * sizeof(vec2));
+        tva = (vec2 *) malloc(vertexCount * sizeof(vec2));
         
-        if (!(sva && dva && pva)) {
+        if (!(sva && dva && pva && tva)) {
             exit(EXIT_FAILURE);
         }
         
@@ -43,11 +49,12 @@ struct Surface {
         free(sva);
         free(dva);
         free(pva);
+        free(tva);
     }
 
 } surface {wave, -PI, -PI, PI, PI};
-/*
-void floatingHorizon (sf::RenderWindow& window, Screen screen, Surface& surface) {
+
+void floatingHorizon (Pixel * pixelArray, Screen screen, Surface& surface) {
     static int * upperHorizon = (int *) malloc(screen.width * sizeof(int));
     static int * lowerHorizon = (int *) malloc(screen.width * sizeof(int));
     static int * upperHorizonSwap = (int *) malloc(screen.width * sizeof(int));
@@ -56,67 +63,68 @@ void floatingHorizon (sf::RenderWindow& window, Screen screen, Surface& surface)
     memset(upperHorizon, screen.height - 1, screen.width);
     memset(lowerHorizon, 0, screen.width);
 
-    int x0, y0, x1, y1;
-    bool flag_p, flag;
+    enum : int {
+    //  LU
+        LU = 0b00,
+        LL = 0b01,
+        UU = 0b10,
+        UL = 0b11,
+    };
 
-    // processing
-    uint32_t v = 0;
+    int x0 = 0, y0 = 0;
+    int x1 = 0, y1 = 0;
+    bool flag = false;
+    bool prevFlag = flag;
 
-    for (int32_t z = 0; z < Surface::n; z++) {
-        for (int32_t x = 0; x < Surface::n; x++) {
-            // current point
-            x1 = round(vertices[v][0]);
-            y1 = round(vertices[v][1]);
+    u32 v = 0;
+    for (int z = 0; z < Surface::n; z += 1) {
+        for (int x = 0; x < Surface::n; x += 1) {
+            x1 = (int) std::roundf(surface.tva[v].x);
+            y1 = (int) std::roundf(surface.tva[v].y);
 
-            flag = y1 < upper[x1] || y1 > lower[x1];
+            flag = y1 < upperHorizon[x1] || y1 > lowerHorizon[x1];
 
-            // correct
-            if (x != 0 && (flag_p || flag)) {
-                int32_t dx = abs(x1 - x0); // delta x
-                int32_t xi = x0 < x1 ? 1 : -1; // x increment
+            if (x != 0 && (prevFlag || flag)) {
+                int dx = std::abs(x1 - x0);
+                int xInc = x0 < x1 ? 1 : -1;
 
-                int32_t dy = -abs(y1 - y0);
-                int32_t yi = y0 < y1 ? 1 : -1;
+                int dy = -std::abs(y1 - y0);
+                int yInc = y0 < y1 ? 1 : -1;
 
-                int32_t de = dx + dy; // delta error
+                int dErr = dx + dy;
 
                 while (true) {
-                    uint8_t flag = 0b00;
+                    int flag = 0;
 
-                    if (upper[x0] > y0) {
-                        upper_n[x0] = y0;
-                        flag |= 0b01;
-                    }
-
-                    if (lower[x0] < y0) {
-                        lower_n[x0] = y0;
-                        flag |= 0b10;
+                    if (upperHorizon[x0] > y0) {
+                        upperHorizonSwap[x0] = y0;
+                        flag |= LL;
                     }
 
-                    if (flag == 0b11) {
-                        g.SetPixel(x0, y0, RGB(255, 255, 255)); // section
+                    if (lowerHorizon[x0] < y0) {
+                        lowerHorizon[x0] = y0;
+                        flag |= UU;
                     }
-                    else if (flag & 0b01) {
-                        g.SetPixel(x0, y0, RGB(255, 255, 255)); // upper
+
+                    if (flag & LL) {
+                        pixelArray [screen.width * y0 + x0] = {255, 255, 255, 255};
                     }
-                    else if (flag & 0b10) {
-                        g.SetPixel(x0, y0, RGB(200, 0, 0)); // lower
+                    else if (flag & UU) {
+                        pixelArray[screen.width * y0 + x0] = {255, 0, 0, 255};
                     }
 
                     if (x0 == x1 && y0 == y1) {
                         break;
                     }
 
-                    int32_t de2 = 2 * de;
-
-                    if (de2 >= dy) {
-                        de += dy;
-                        x0 += xi;
+                    if (2 * dErr >= dy) {
+                        dErr += dy;
+                        x0 += xInc;
                     }
 
-                    if (de2 <= dx) {
-                        de += dx;
-                        y0 += yi;
+                    if (2 * dErr <= dx) {
+                        dErr += dx;
+                        y0 += yInc;
                     }
                 }
             }
@@ -125,18 +133,14 @@ void floatingHorizon (sf::RenderWindow& window, Screen screen, Surface& surface)
                 y0 = y1;
             }
 
-            flag_p = flag;
-            v++;
+            prevFlag = flag;
+            v += 1;
         }
 
-        upper = upper_n;
-        lower = lower_n;
+        memcpy(upperHorizon, upperHorizonSwap, screen.width * sizeof(int));
+        memcpy(lowerHorizon, lowerHorizonSwap, screen.width * sizeof(int));
     }
 }
-*/
-
-vec2 * tva = (vec2 *) malloc(Surface::vertexCount * sizeof(vec2));
-sf::Vertex * fva = (sf::Vertex *) malloc(Surface::vertexCount * sizeof(sf::Vertex));
 
 int main() {
     auto window = sf::RenderWindow {
@@ -149,6 +153,12 @@ int main() {
             false
         }
     };
+
+    auto texture = sf::Texture {};
+    texture.create(screen.width, screen.height);
+
+    auto canvas = sf::Sprite {};
+    canvas.setTexture(texture);
 
     auto angle = 0.16f * PI;
     auto const incSpeed = -0.0000002f;
@@ -184,18 +194,28 @@ int main() {
         (Transform {}.rotateX(angle) * worldToView(camera))
         .applyWith((float *) surface.dva, (float const *) surface.sva, Surface::vertexCount);
         parallelProj((float *) surface.pva, (float *) surface.dva, Surface::vertexCount);
-        pictureToScreen((float *) tva, (float *) surface.pva, Surface::vertexCount, screen, camera.zoom);
+        pictureToScreen((float *) surface.tva, (float *) surface.pva, Surface::vertexCount, screen, camera.zoom);
 
+        //static sf::Vertex * fva = (sf::Vertex *) malloc(Surface::vertexCount * sizeof(sf::Vertex));
         //for (int i = 0; i < Surface::vertexCount; i += 1) {
         //    fva[i] = sf::Vertex {{tva[i].x, tva[i].y}, sf::Color::White};
         //}
 
+        //for (u32 i = 0; i < screen.width; i += 1) {
+        //    for (u32 j = 0; j < screen.height; j += 1) {
+        //        float a = 255.f * i / (float) screen.width;
+        //        pixelArray[screen.width * j + i] = {u8 (a), u8 (a), u8 (a), 255};
+        //    }
+        //}
+
         window.clear();
-        //floatingHorizon(window, screen, surface);
         //window.draw(fva, Surface::vertexCount, sf::Points);
+        floatingHorizon(pixelArray, screen, surface);
+        texture.update((u8 *) pixelArray);
+        window.draw(canvas);
         window.display();
 
-        dt = clock.restart().asMicroseconds();
+        dt = (float) clock.restart().asMicroseconds();
     }
 
     return EXIT_SUCCESS;
