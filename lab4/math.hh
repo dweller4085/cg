@@ -5,7 +5,30 @@
 #include <SFML/Graphics.hpp>
 
 constexpr float TAU = 6.28318530718f;
+constexpr float PI = TAU / 2.f;
 constexpr float EPSILON = 0.0000001f;
+
+struct alignas(4) ivec2 {
+    union {
+        struct {
+            s32 x;
+            s32 y;
+        };
+
+        float a[2];
+    };
+};
+
+struct alignas(4) vec2 {
+    union {
+        struct {
+            float x;
+            float y;
+        };
+
+        float a[2];
+    };
+};
 
 struct alignas(4) vec3 {
     union {
@@ -33,10 +56,6 @@ struct alignas(4) vec3 {
     void operator += (vec3 v) {
         self = self + v;
     }
-    void operator -= (vec3 v) {
-        self = self - v;
-    }
-
 
     static inline float euclidianDistance (vec3 a, vec3 b) {
         return sqrtf((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y) + (a.z - b.z) * (a.z - b.z));
@@ -75,15 +94,16 @@ struct Transform {
     Transform& rotateY (float a) { return self.rotateY(cosf(a), sinf(a)); };
     Transform& rotateZ (float a) { return self.rotateZ(cosf(a), sinf(a)); };
     Transform& operator *= (Transform const &);
-    void applyTo (float *, size_t);
-    void applyWith (float * __restrict, float const * __restrict, size_t);
+    Transform operator * (Transform const & other) {
+        return Transform {self} *= other;
+    }
+    void applyTo (float * va, size_t n);
+    void applyWith (float * __restrict to, float const * __restrict with, size_t n);
 };
 
 struct Camera {
     vec3 pos;
     float zoom = 50.f;
-    //cam always points to world origin
-    //vec3 dir;
 };
 
 struct Screen {
@@ -92,6 +112,6 @@ struct Screen {
 };
 
 Transform worldToView (Camera);
-void perspectiveProj (float * __restrict, float * __restrict, Camera, size_t);
-void parallelProj (float * __restrict, float * __restrict, size_t);
+void perspectiveProj (float * __restrict pp, float * __restrict va, Camera, size_t);
+void parallelProj (float * __restrict pp, float * __restrict va, size_t);
 void pictureToScreen (float * __restrict, float * __restrict, size_t, Screen, float);

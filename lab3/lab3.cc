@@ -27,22 +27,19 @@ namespace {
             1, 4, 5,
         };
 
-        sf::Color triColors[triCount] {
-            {255, 0, 0},
-            {255, 0, 0},
-            {255, 255, 255},
-            {255, 255, 255},
-            {255, 255, 255},
-            {255, 255, 255},
-            {255, 255, 255},
-            {255, 255, 255},
-        };
+        sf::Color triColors[triCount] {};
 
         float centerPoint[3] {};
-        float * W = (float *) malloc (triCount * 4 * sizeof(float));
+        float * W;
         
         Prism() {
             enum Var : int { x, y, z };
+
+            W = (float *) malloc (triCount * 4 * sizeof(float)); {
+                if (!W) {
+                    exit(EXIT_FAILURE);
+                }
+            }
             
             for (int i = 0; i < vertexCount; i += 1) {
                 centerPoint[x] += va[3 * i + x] * (1.f / vertexCount);

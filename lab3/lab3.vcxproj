@@ -108,7 +108,7 @@
       <AdditionalIncludeDirectories>C:\lib\SFML-2.5.1\include;C:\lib\MKB\include;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>C:\lib\SFML-2.5.1\lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>sfml-main-d.lib;sfml-system-d.lib;sfml-window-d.lib;sfml-graphics-d.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
