@@ -42,14 +42,14 @@ static Camera camera {{6, 6, 6}};
 
 static struct CameraController {
     Camera& cam = ::camera;
-    bool isDragging = false;
-    float dragSpeed = 0.008f;
+    bool isDragging = true;
+    float dragSpeed = 0.0000008f;
     float slideSpeed = 1.25f;
     float zoomSpeed = 0.8f;
     float pitchThreshold = 2.f;
     struct { int x, y; } prevCurPos {0, 0};
 
-    void dragCamera(int dx, int dy) {
+    void dragCamera(float dx, float dy) {
         if (!isDragging) return;
 
         Transform {}.rotateZ(dx * dragSpeed).applyTo(cam.pos.a, 1);
@@ -86,7 +86,11 @@ int main() {
         Parallel,
     } projection = Projection::Perspective;
 
+    float dt = 0;
+    sf::Clock static clock {};
+
     while (window.isOpen()) {
+        
         while (window.pollEvent(event)) {
             switch (event.type) {
                 case sf::Event::Closed: {
@@ -120,33 +124,10 @@ int main() {
                         } break;
                     }
                 } break;
-
-                case sf::Event::MouseButtonPressed: {
-                    switch (event.mouseButton.button) {
-                        case sf::Mouse::Left: {
-                            camController.isDragging = true;
-                            camController.prevCurPos = {event.mouseButton.x, event.mouseButton.y};
-                        } break;
-                    }
-                } break;
-
-                case sf::Event::MouseButtonReleased: {
-                    switch (event.mouseButton.button) {
-                        case sf::Mouse::Left: {
-                            camController.isDragging = false;
-                        } break;
-                    }
-                } break;
-                
-                case sf::Event::MouseMoved: {
-                    int dx = event.mouseMove.x - camController.prevCurPos.x;
-                    int dy = event.mouseMove.y - camController.prevCurPos.y;
-
-                    camController.prevCurPos = {event.mouseMove.x, event.mouseMove.y};
-                    camController.dragCamera(dx, dy);
-                } break;
             }
         }
+
+        camController.dragCamera(100, 0.f);
 
         worldToView(camera).applyWith(viewSpace, prismVA, vertexCount);
 
@@ -175,6 +156,8 @@ int main() {
         window.clear();
         window.draw(finalVA, segmentCount * 2, sf::Lines);
         window.display();
+
+        dt = clock.restart().asMicroseconds();
     }
     
     return 0;
